@@ -19,12 +19,14 @@ class Cursor {
 
   // 向左移动光标
   left() {
-    return this.moveTo(this.offset - 1);
+    // 对于中文字符，也只移动一个位置
+    return this.moveTo(Math.max(0, this.offset - 1));
   }
 
   // 向右移动光标
   right() {
-    return this.moveTo(this.offset + 1);
+    // 对于中文字符，也只移动一个位置
+    return this.moveTo(Math.min(this.text.length, this.offset + 1));
   }
 
   // 向上移动光标
@@ -155,7 +157,7 @@ function updateYankLength() {
   yankState.length = killRing.length;
 }
 
-module.exports = {
+export {
   Cursor,
   pushToKillRing,
   getLastKill,

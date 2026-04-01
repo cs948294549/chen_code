@@ -1,7 +1,13 @@
 // 命令注册和管理
-
-const fs = require('fs');
-const path = require('path');
+import helpCommand from './commands/help/index.js';
+import exitCommand from './commands/exit/index.js';
+import clearCommand from './commands/clear/index.js';
+import historyCommand from './commands/history/index.js';
+import touchCommand from './commands/touch/index.js';
+import writeCommand from './commands/write/index.js';
+import cronCreateCommand from './commands/cron/create/index.js';
+import cronDeleteCommand from './commands/cron/delete/index.js';
+import cronListCommand from './commands/cron/list/index.js';
 
 const commands = {};
 const commandSources = {};
@@ -19,13 +25,17 @@ function registerCommandSource(source, commandsList) {
   commandSources[source] = commandsList;
 }
 
-function executeCommand(input) {
+async function executeCommand(input) {
   const parts = input.trim().split(' ');
   const commandName = parts[0];
   const args = parts.slice(1);
   
   if (commands[commandName]) {
-    return commands[commandName].handler(args);
+    try {
+      return await commands[commandName].handler(args);
+    } catch (error) {
+      return `Error executing command: ${error.message}`;
+    }
   } else {
     return `Unknown command: ${commandName}. Type '/help' for available commands.`;
   }
@@ -50,37 +60,22 @@ function formatDescriptionWithSource(cmd) {
   return cmd.description;
 }
 
-// 加载命令目录
-function loadCommandsFromDirectory(directory) {
-  try {
-    const commandFiles = fs.readdirSync(directory);
-    for (const commandFile of commandFiles) {
-      const commandPath = path.join(directory, commandFile);
-      const commandStats = fs.statSync(commandPath);
-      
-      if (commandStats.isDirectory()) {
-        // 加载子目录中的命令
-        const indexPath = path.join(commandPath, 'index.js');
-        if (fs.existsSync(indexPath)) {
-          const command = require(indexPath);
-          if (command.name && command.handler) {
-            registerCommand(command.name, command.handler, command.description, command);
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error loading commands:', error);
-  }
-}
-
 // 初始化命令系统
 function initCommands() {
-  // 加载内置命令
-  const commandsDir = path.join(__dirname, 'commands');
-  if (fs.existsSync(commandsDir)) {
-    loadCommandsFromDirectory(commandsDir);
-  }
+  // 直接注册所有命令
+  
+  // 基础命令
+  registerCommand('help', helpCommand.handler, 'Show detailed help message', { source: 'builtin' });
+  registerCommand('exit', exitCommand.handler, 'Exit the program', { source: 'builtin' });
+  registerCommand('clear', clearCommand.handler, 'Clear the terminal', { source: 'builtin' });
+  registerCommand('history', historyCommand.handler, 'Show command history', { source: 'builtin' });
+  registerCommand('touch', touchCommand.handler, 'Create new files', { source: 'builtin' });
+  registerCommand('write', writeCommand.handler, 'Write content to files', { source: 'builtin' });
+  
+  // cron 相关命令
+  registerCommand('cron:create', cronCreateCommand.handler, 'Create a scheduled task', { source: 'builtin' });
+  registerCommand('cron:delete', cronDeleteCommand.handler, 'Delete a scheduled task', { source: 'builtin' });
+  registerCommand('cron:list', cronListCommand.handler, 'List all scheduled tasks', { source: 'builtin' });
   
   // 可以在这里加载额外的命令
   // 例如从插件、外部目录等
@@ -89,7 +84,7 @@ function initCommands() {
 // 初始化命令
 initCommands();
 
-module.exports = {
+export {
   registerCommand,
   registerCommandSource,
   executeCommand,
@@ -97,7 +92,6 @@ module.exports = {
   hasCommand,
   findCommand,
   formatDescriptionWithSource,
-  loadCommandsFromDirectory,
   initCommands
 };
 

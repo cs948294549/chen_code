@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 const touchCommand = {
   name: 'touch',
@@ -47,4 +47,4 @@ const touchCommand = {
   }
 };
 
-module.exports = touchCommand;
+export default touchCommand;

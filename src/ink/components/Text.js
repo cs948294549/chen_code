@@ -1,8 +1,8 @@
-const React = require('react');
-const { Text } = require('ink');
+import React from 'react';
+import { Text } from 'ink';
 
 function TextComponent({ children, ...props }) {
   return React.createElement(Text, props, children);
 }
 
-module.exports = TextComponent;
+export default TextComponent;

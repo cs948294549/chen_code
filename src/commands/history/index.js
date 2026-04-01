@@ -1,9 +1,10 @@
+import { getHistory } from '../../history.js';
+
 const historyCommand = {
   name: 'history',
   description: 'Show command history',
   source: 'builtin',
   handler: (args) => {
-    const { getHistory } = require('../../history');
     const history = getHistory();
     if (history.length === 0) {
       return 'No history available';
@@ -16,4 +17,4 @@ const historyCommand = {
   }
 };
 
-module.exports = historyCommand;
+export default historyCommand;

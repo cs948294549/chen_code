@@ -1,6 +1,6 @@
-const React = require('react');
-const { render } = require('ink');
-const App = require('../ink/components/App');
+import React from 'react';
+import { render } from 'ink';
+import App from '../ink/components/App.js';
 
 function keepAlive() {
   // 保持程序运行

@@ -8,4 +8,4 @@ const clearCommand = {
   }
 };
 
-module.exports = clearCommand;
+export default clearCommand;

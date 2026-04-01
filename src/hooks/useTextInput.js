@@ -1,31 +1,36 @@
 // 文本输入处理钩子
 
-const { Cursor, pushToKillRing, getLastKill, recordYank, yankPop, resetKillAccumulation, resetYankState, updateYankLength } = require('../utils/Cursor');
-const { addToHistory, getHistoryUp, getHistoryDown, resetHistory } = require('../history');
+import { Cursor, pushToKillRing, getLastKill, recordYank, yankPop, resetKillAccumulation, resetYankState, updateYankLength } from '../utils/Cursor.js';
+import { addToHistory, getHistoryUp, getHistoryDown, resetHistory } from '../history.js';
 
-function useTextInput({ value, onChange, onSubmit, onExit, columns = 80 }) {
+function useTextInput({ getValue, onChange, onSubmit, onExit, columns = 80 }) {
   let offset = 0;
-  let cursor = Cursor.fromText(value, columns, offset);
 
   function setOffset(newOffset) {
     offset = newOffset;
-    cursor = Cursor.fromText(value, columns, offset);
   }
 
   function handleInput(char, key) {
+    // 获取最新的 value 值
+    const value = getValue();
+    // 基于当前的 value 和 offset 创建新的 cursor 对象
+    const cursor = Cursor.fromText(value, columns, offset);
+    
     if (key.return) {
       // 处理回车键
       if (onSubmit) {
         onSubmit(value);
       }
       addToHistory(value);
-      onChange('');
+      // 先更新 offset，再调用 onChange
       setOffset(0);
+      onChange('');
     } else if (key.backspace || key.delete) {
       // 处理退格键和删除键
       const newCursor = key.backspace ? cursor.backspace() : cursor.del();
-      onChange(newCursor.text);
+      // 先更新 offset，再调用 onChange
       setOffset(newCursor.offset);
+      onChange(newCursor.text);
     } else if (key.left) {
       // 处理左箭头
       const newCursor = cursor.left();
@@ -37,18 +42,25 @@ function useTextInput({ value, onChange, onSubmit, onExit, columns = 80 }) {
     } else if (key.up) {
       // 处理上箭头（历史记录）
       const historyValue = getHistoryUp(value);
-      onChange(historyValue);
-      setOffset(historyValue.length);
+      if (historyValue !== undefined) {
+        // 先更新 offset，再调用 onChange
+        setOffset(historyValue.length);
+        onChange(historyValue);
+      }
     } else if (key.down) {
       // 处理下箭头（历史记录）
       const historyValue = getHistoryDown(value);
-      onChange(historyValue);
-      setOffset(historyValue.length);
+      if (historyValue !== undefined) {
+        // 先更新 offset，再调用 onChange
+        setOffset(historyValue.length);
+        onChange(historyValue);
+      }
     } else if (key.ctrl && char === 'c') {
       // 处理 Ctrl+C
       if (value) {
-        onChange('');
+        // 先更新 offset，再调用 onChange
         setOffset(0);
+        onChange('');
         resetHistory();
       } else {
         if (onExit) {
@@ -67,34 +79,39 @@ function useTextInput({ value, onChange, onSubmit, onExit, columns = 80 }) {
         }
       } else {
         const newCursor = cursor.del();
-        onChange(newCursor.text);
+        // 先更新 offset，再调用 onChange
         setOffset(newCursor.offset);
+        onChange(newCursor.text);
       }
     } else if (key.ctrl && char === 'k') {
       // 处理 Ctrl+K（删除到行尾）
       const { cursor: newCursor, killed } = cursor.deleteToLineEnd();
       pushToKillRing(killed, 'append');
-      onChange(newCursor.text);
+      // 先更新 offset，再调用 onChange
       setOffset(newCursor.offset);
+      onChange(newCursor.text);
     } else if (key.ctrl && char === 'u') {
       // 处理 Ctrl+U（删除到行首）
       const { cursor: newCursor, killed } = cursor.deleteToLineStart();
       pushToKillRing(killed, 'prepend');
-      onChange(newCursor.text);
+      // 先更新 offset，再调用 onChange
       setOffset(newCursor.offset);
+      onChange(newCursor.text);
     } else if (key.ctrl && char === 'w') {
       // 处理 Ctrl+W（删除前一个单词）
       const { cursor: newCursor, killed } = cursor.deleteWordBefore();
       pushToKillRing(killed, 'prepend');
-      onChange(newCursor.text);
+      // 先更新 offset，再调用 onChange
       setOffset(newCursor.offset);
+      onChange(newCursor.text);
     } else if (key.ctrl && char === 'y') {
       // 处理 Ctrl+Y（粘贴）
       const text = getLastKill();
       if (text) {
         const newCursor = cursor.insert(text);
-        onChange(newCursor.text);
+        // 先更新 offset，再调用 onChange
         setOffset(newCursor.offset);
+        onChange(newCursor.text);
         recordYank();
       }
     } else if (key.alt && char === 'y') {
@@ -102,23 +119,26 @@ function useTextInput({ value, onChange, onSubmit, onExit, columns = 80 }) {
       const text = yankPop();
       if (text) {
         const newCursor = cursor.insert(text);
-        onChange(newCursor.text);
+        // 先更新 offset，再调用 onChange
         setOffset(newCursor.offset);
+        onChange(newCursor.text);
       }
     } else if (char) {
       // 处理普通字符输入
       const newCursor = cursor.insert(char);
-      onChange(newCursor.text);
+      // 先更新 offset，再调用 onChange
       setOffset(newCursor.offset);
+      onChange(newCursor.text);
     }
   }
 
   return {
     handleInput,
-    offset,
-    setOffset,
-    cursor
+    get offset() {
+      return offset;
+    },
+    setOffset
   };
 }
 
-module.exports = useTextInput;
+export default useTextInput;

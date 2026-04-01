@@ -7,4 +7,4 @@ const exitCommand = {
   }
 };
 
-module.exports = exitCommand;
+export default exitCommand;

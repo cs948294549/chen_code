@@ -1,8 +1,8 @@
-const React = require('react');
-const { Box } = require('ink');
+import React from 'react';
+import { Box } from 'ink';
 
 function BoxComponent({ children, ...props }) {
   return React.createElement(Box, props, children);
 }
 
-module.exports = BoxComponent;
+export default BoxComponent;

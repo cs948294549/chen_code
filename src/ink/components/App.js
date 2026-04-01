@@ -1,10 +1,10 @@
-const React = require('react');
-const { useState, useEffect } = React;
-const { useInput } = require('ink');
-const Box = require('./Box');
-const Text = require('./Text');
-const { executeCommand } = require('../../commands');
-const { addToHistory, getHistoryUp, getHistoryDown, resetHistory } = require('../../history');
+import React, { useState, useEffect } from 'react';
+import { useInput } from 'ink';
+import Box from './Box.js';
+import Text from './Text.js';
+import { executeCommand } from '../../commands.js';
+import { addToHistory, resetHistory } from '../../history.js';
+import serviceManager from '../../services/index.js';
 
 function App() {
   const [input, setInput] = useState('');
@@ -12,6 +12,28 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [history, setHistory] = useState([]);
+  
+  // 初始化定时任务调度器
+  useEffect(() => {
+    // 初始化服务
+    serviceManager.init({
+      cronScheduler: {
+        onFire: (prompt) => {
+          setMessages(prev => [
+            ...prev,
+            { type: 'system', text: '=== Scheduled Task Fired ===' },
+            { type: 'system', text: prompt },
+            { type: 'system', text: '============================' }
+          ]);
+        }
+      }
+    });
+    
+    // 组件卸载时停止服务
+    return () => {
+      serviceManager.stop();
+    };
+  }, []);
 
   // 处理输入
   useInput((inputChar, key) => {
@@ -81,7 +103,7 @@ function App() {
   });
 
   // 处理提交
-  function handleSubmit(value) {
+  async function handleSubmit(value) {
     // 添加到历史记录
     addToHistory(value);
     setHistory([...history, value]);
@@ -91,7 +113,11 @@ function App() {
     // 检查是否是命令
     if (value.startsWith('/')) {
       const command = value.slice(1);
-      response = executeCommand(command);
+      try {
+        response = await executeCommand(command);
+      } catch (error) {
+        response = `Error: ${error.message}`;
+      }
     } else {
       // 处理普通输入
       response = `You entered: ${value}`;
@@ -151,4 +177,4 @@ function App() {
   );
 }
 
-module.exports = App;
+export default App;

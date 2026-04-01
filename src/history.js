@@ -50,7 +50,7 @@ function getHistory() {
   return history;
 }
 
-module.exports = {
+export {
   addToHistory,
   getHistoryUp,
   getHistoryDown,

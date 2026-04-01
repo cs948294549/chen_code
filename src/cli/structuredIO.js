@@ -24,7 +24,7 @@ function outputSuccess(message) {
   console.log(`Success: ${message}`);
 }
 
-module.exports = {
+export {
   output,
   outputError,
   outputSuccess
