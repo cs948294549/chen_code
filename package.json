@@ -1,0 +1,25 @@
+{
+  "name": "claudecode-client",
+  "version": "1.0.0",
+  "description": "A CLI client for claudecode",
+  "main": "src/entrypoints/cli.js",
+  "bin": {
+    "claudecode": "./src/entrypoints/cli.js"
+  },
+  "scripts": {
+    "start": "node src/entrypoints/cli.js",
+    "start:ink": "node src/entrypoints/cli-ink.js"
+  },
+  "keywords": [
+    "claudecode",
+    "client",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ink": "^3.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
