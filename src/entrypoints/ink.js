@@ -1,6 +1,6 @@
 const React = require('react');
 const { render } = require('ink');
-const App = require('./ink/components/App');
+const App = require('../ink/components/App');
 
 function keepAlive() {
   // 保持程序运行

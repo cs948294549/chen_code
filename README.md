@@ -64,7 +64,8 @@ node src/entrypoints/cli-ink.js
 src/
 ├── entrypoints/
 │   ├── cli.js          # CLI entry point
-│   └── cli-ink.js      # Ink UI entry point
+│   ├── cli-ink.js      # Ink UI entry point
+│   └── ink.js          # Ink module entry point
 ├── hooks/
 │   └── useTextInput.js # Text input handling hook
 ├── ink/
@@ -75,8 +76,7 @@ src/
 ├── utils/
 │   └── Cursor.js       # Cursor management utility
 ├── commands.js         # Command registration and execution
-├── history.js          # History management
-└── ink.js              # Ink module entry point
+└── history.js          # History management
 ```
 
 ## Keyboard Shortcuts

@@ -1,12 +1,22 @@
 // 命令注册和管理
 
-const commands = {};
+const fs = require('fs');
+const path = require('path');
 
-function registerCommand(name, handler, description) {
+const commands = {};
+const commandSources = {};
+
+function registerCommand(name, handler, description, options = {}) {
   commands[name] = {
+    name,
     handler,
-    description
+    description,
+    ...options
   };
+}
+
+function registerCommandSource(source, commandsList) {
+  commandSources[source] = commandsList;
 }
 
 function executeCommand(input) {
@@ -29,53 +39,65 @@ function hasCommand(name) {
   return !!commands[name];
 }
 
-// 注册默认命令
-registerCommand('help', () => {
-  let helpText = '=== Claudecode CLI Help ===\n\n';
-  helpText += 'Available commands:\n\n';
-  for (const [name, command] of Object.entries(commands)) {
-    helpText += `  /${name}: ${command.description}\n`;
+function findCommand(commandName) {
+  return commands[commandName];
+}
+
+function formatDescriptionWithSource(cmd) {
+  if (cmd.source) {
+    return `${cmd.description} (${cmd.source})`;
   }
-  helpText += '\n=== Usage Examples ===\n';
-  helpText += '  /help                    - Show this help message\n';
-  helpText += '  /exit                    - Exit the program\n';
-  helpText += '  /clear                   - Clear the terminal\n';
-  helpText += '  /history                 - Show command history\n';
-  helpText += '\n=== Keyboard Shortcuts ===\n';
-  helpText += '  Up Arrow                 - Previous command\n';
-  helpText += '  Down Arrow               - Next command\n';
-  helpText += '  Ctrl+C                   - Clear input or exit\n';
-  helpText += '  Ctrl+D                   - Delete character or exit\n';
-  helpText += '\n=== Customization ===\n';
-  helpText += 'To customize this help message, edit the help command in src/commands.js\n';
-  return helpText;
-}, 'Show detailed help message with usage examples and shortcuts');
+  return cmd.description;
+}
 
-registerCommand('exit', () => {
-  process.exit(0);
-}, 'Exit the program');
-
-registerCommand('clear', () => {
-  console.clear();
-  return 'Terminal cleared';
-}, 'Clear the terminal');
-
-registerCommand('history', () => {
-  const { getHistory } = require('./history');
-  const history = getHistory();
-  if (history.length === 0) {
-    return 'No history available';
+// 加载命令目录
+function loadCommandsFromDirectory(directory) {
+  try {
+    const commandFiles = fs.readdirSync(directory);
+    for (const commandFile of commandFiles) {
+      const commandPath = path.join(directory, commandFile);
+      const commandStats = fs.statSync(commandPath);
+      
+      if (commandStats.isDirectory()) {
+        // 加载子目录中的命令
+        const indexPath = path.join(commandPath, 'index.js');
+        if (fs.existsSync(indexPath)) {
+          const command = require(indexPath);
+          if (command.name && command.handler) {
+            registerCommand(command.name, command.handler, command.description, command);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error loading commands:', error);
   }
-  let historyText = 'History:\n';
-  history.forEach((item, index) => {
-    historyText += `${index + 1}. ${item}\n`;
-  });
-  return historyText;
-}, 'Show command history');
+}
+
+// 初始化命令系统
+function initCommands() {
+  // 加载内置命令
+  const commandsDir = path.join(__dirname, 'commands');
+  if (fs.existsSync(commandsDir)) {
+    loadCommandsFromDirectory(commandsDir);
+  }
+  
+  // 可以在这里加载额外的命令
+  // 例如从插件、外部目录等
+}
+
+// 初始化命令
+initCommands();
 
 module.exports = {
   registerCommand,
+  registerCommandSource,
   executeCommand,
   getCommands,
-  hasCommand
+  hasCommand,
+  findCommand,
+  formatDescriptionWithSource,
+  loadCommandsFromDirectory,
+  initCommands
 };
+

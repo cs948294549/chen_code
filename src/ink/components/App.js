@@ -122,7 +122,7 @@ function App() {
     
     // 命令提示
     React.createElement(Box, { marginBottom: 2, flexDirection: 'column' },
-      React.createElement(Text, null, 'Commands:'),
+      React.createElement(Text, null, 'APP Commands:'),
       React.createElement(Box, { marginLeft: 2, flexDirection: 'column' },
         React.createElement(Text, null, '/help: Show help message'),
         React.createElement(Text, null, '/exit: Exit the program'),
