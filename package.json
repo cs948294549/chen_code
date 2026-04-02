@@ -1,26 +1,23 @@
 {
-  "name": "claudecode-client",
+  "name": "query-engine",
   "version": "1.0.0",
-  "description": "A CLI client for claudecode",
+  "description": "Query engine implementation based on Claude Code architecture",
+  "main": "src/index.js",
   "type": "module",
-  "main": "src/entrypoints/cli.js",
-  "bin": {
-    "claudecode": "./src/entrypoints/cli.js"
-  },
   "scripts": {
-    "start": "node src/entrypoints/cli.js",
-    "start:ink": "node src/entrypoints/cli-ink.js"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start:ink": "node src/entrypoints/cli-ink.js",
+    "start": "node src/entrypoints/cli.js"
   },
   "keywords": [
-    "claudecode",
-    "client",
-    "cli"
+    "query-engine",
+    "ai",
+    "async-generator"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "ISC",
   "dependencies": {
-    "ink": "^3.2.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "ink": "^4.1.0"
   }
 }

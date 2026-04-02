@@ -83,6 +83,10 @@ async function handleSubmit(value) {
     return;
   }
   
+  // 清除终端上的输入内容
+  process.stdout.clearLine(0);
+  process.stdout.cursorTo(0);
+  
   // 检查是否是命令
   if (value.startsWith('/')) {
     const command = value.slice(1);
@@ -95,14 +99,106 @@ async function handleSubmit(value) {
       console.log(`Error: ${error.message}`);
     }
   } else {
-    // 处理普通输入
-    console.log(`You entered: ${value}`);
+    // 处理普通输入 - 使用 AI 服务进行对话
+    await handleAIConversation(value);
   }
   
   // 重置输入和光标
   input = '';
   textInputState.setOffset(0);
   rl.prompt();
+}
+
+// 处理 AI 对话
+async function handleAIConversation(prompt) {
+  const aiService = serviceManager.getService('ai');
+  
+  if (!aiService) {
+    console.log('AI service not initialized');
+    return;
+  }
+
+  if (aiService.isBusy()) {
+    console.log('AI is currently processing a message. Please wait...');
+    return;
+  }
+
+  try {
+    // 清空消息历史，避免累积历史消息
+    // aiService.clearMessages();
+    
+    console.log('\nAI: ');
+    
+    // 处理消息流
+    for await (const message of aiService.sendMessage(prompt)) {
+      switch (message.type) {
+        case 'assistant':
+          // 处理助手消息
+          const assistantContent = message.message.content
+            .filter(block => block.type === 'text')
+            .map(block => block.text)
+            .join('');
+          if (assistantContent) {
+            process.stdout.write(assistantContent);
+          }
+          break;
+          
+        case 'user':
+          // 处理用户消息（工具结果等）
+          const userContent = message.message.content
+            .filter(block => block.type === 'tool_result')
+            .map(block => {
+              if (block.is_error) {
+                return `[Tool Error]: ${block.content}`;
+              }
+              return `[Tool Result]: ${block.content}`;
+            })
+            .join('\n');
+          if (userContent) {
+            console.log(userContent);
+          }
+          break;
+          
+        case 'system':
+          // 处理系统消息
+          if (message.subtype === 'api_error') {
+            console.log(`[API Error]: ${message.content}`);
+          }
+          break;
+          
+        case 'result':
+          // 处理最终结果
+          if (message.subtype === 'success') {
+            console.log(`\n[Usage]: ${JSON.stringify(message.usage)}`);
+          } else if (message.is_error) {
+            console.log(`\n[Error]: ${message.result || 'An error occurred'}`);
+          }
+          break;
+          
+        case 'progress':
+          // 处理进度消息
+          console.log(`[Progress]: ${message.content}`);
+          break;
+          
+        case 'attachment':
+          // 处理附件消息
+          if (message.attachment.type === 'max_turns_reached') {
+            console.log(`\n[Info]: Maximum turns (${message.attachment.maxTurns}) reached`);
+          } else if (message.attachment.type === 'max_budget_reached') {
+            console.log(`\n[Info]: Maximum budget ($${message.attachment.budget}) reached`);
+          }
+          break;
+      }
+    }
+    
+    console.log('');
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('\n[Interrupted]: AI response was interrupted');
+    } else {
+      console.log(`\n[Error]: ${error.message}`);
+    }
+  }
 }
 
 // 监听按键事件
@@ -120,6 +216,12 @@ console.log('  /help: Show help message');
 console.log('  /exit: Exit the program');
 console.log('  /clear: Clear the terminal');
 console.log('  /history: Show command history');
+console.log('  /model: View or switch AI model');
+console.log('  /reset: Clear AI conversation history');
+console.log('');
+console.log('AI Conversation:');
+console.log('  Just type your message to chat with AI');
+console.log('  AI will respond using the QueryEngine');
 console.log('');
 
 // 初始化服务
@@ -137,8 +239,16 @@ process.on('SIGINT', () => {
     process.stdout.cursorTo(0);
     rl.prompt();
   } else {
-    console.log('\nGoodbye!');
-    serviceManager.stop();
-    process.exit(0);
+    // 停止 AI 服务
+    const aiService = serviceManager.getService('ai');
+    if (aiService && aiService.isBusy()) {
+      aiService.interrupt();
+      console.log('\nAI response interrupted');
+      rl.prompt();
+    } else {
+      console.log('\nGoodbye!');
+      serviceManager.stop();
+      process.exit(0);
+    }
   }
 });

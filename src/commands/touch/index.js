@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { FileOperations } from '../../utils/operations/files/index.js';
 
 const touchCommand = {
   name: 'touch',
@@ -15,19 +14,10 @@ const touchCommand = {
 
     for (const filePath of args) {
       try {
-        // 解析文件路径
-        const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
+        const result = FileOperations.touchFile(filePath);
         
-        // 确保目录存在
-        const dir = path.dirname(absolutePath);
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        
-        // 创建文件
-        if (!fs.existsSync(absolutePath)) {
-          fs.writeFileSync(absolutePath, '', 'utf8');
-          createdFiles.push(absolutePath);
+        if (result.created) {
+          createdFiles.push(result.path);
         } else {
           failedFiles.push(`${filePath} (already exists)`);
         }

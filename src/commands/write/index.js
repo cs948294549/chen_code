@@ -1,8 +1,6 @@
-import fs from 'fs';
-import path from 'path';
 import { createLogger } from '../../utils/logger.js';
+import { FileOperations } from '../../utils/operations/files/index.js';
 
-// 创建日志记录器
 const logger = createLogger('write');
 
 const writeCommand = {
@@ -15,15 +13,11 @@ const writeCommand = {
       return 'Usage: /write <file> <content> [content ...] [--overwrite]';
     }
 
-    // 检查是否有 --overwrite 选项
     const overwrite = args.includes('--overwrite');
-    // 移除 --overwrite 选项
     const filteredArgs = args.filter(arg => arg !== '--overwrite');
-
     const filePath = filteredArgs[0];
     let content = filteredArgs.slice(1).join(' ');
     
-    // 替换时间占位符
     const now = new Date();
     const timestamp = now.toISOString();
     const datetime = now.toLocaleString();
@@ -34,32 +28,13 @@ const writeCommand = {
     logger.info(`Writing to ${filePath}: ${content}`);
 
     try {
-      // 解析文件路径
-      const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
-      logger.debug(`Absolute path: ${absolutePath}`);
+      const result = FileOperations.writeFile(filePath, content, {
+        append: !overwrite,
+        addNewline: !overwrite
+      });
       
-      // 确保目录存在
-      const dir = path.dirname(absolutePath);
-      logger.debug(`Ensuring directory exists: ${dir}`);
-      if (!fs.existsSync(dir)) {
-        logger.debug(`Creating directory: ${dir}`);
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      
-      if (overwrite) {
-        // 覆盖写入
-        logger.debug(`Overwriting content to file`);
-        fs.writeFileSync(absolutePath, content, 'utf8');
-        logger.info(`Content overwritten successfully`);
-        return `Overwrote to file: ${absolutePath}`;
-      } else {
-        // 追加写入
-        logger.debug(`Appending content to file`);
-        // 先添加换行符
-        fs.appendFileSync(absolutePath, '\n' + content, 'utf8');
-        logger.info(`Content appended successfully`);
-        return `Appended to file: ${absolutePath}`;
-      }
+      logger.info(`Content ${result.operation === 'append' ? 'appended' : 'overwritten'} successfully`);
+      return `${result.operation === 'append' ? 'Appended' : 'Overwrote'} to file: ${result.path}`;
     } catch (error) {
       logger.error(`Error: ${error.message}`, error);
       return `Failed to write file: ${error.message}`;

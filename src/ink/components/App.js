@@ -109,30 +109,176 @@ function App() {
     setHistory([...history, value]);
     setHistoryIndex(-1);
 
-    let response;
+    // 清空输入
+    setInput('');
+    setCursorPosition(0);
+
     // 检查是否是命令
     if (value.startsWith('/')) {
       const command = value.slice(1);
       try {
-        response = await executeCommand(command);
+        const response = await executeCommand(command);
+        // 添加到消息列表
+        setMessages(prev => [
+          ...prev,
+          { type: 'user', text: value },
+          { type: 'system', text: response || '' }
+        ]);
       } catch (error) {
-        response = `Error: ${error.message}`;
+        // 添加到消息列表
+        setMessages(prev => [
+          ...prev,
+          { type: 'user', text: value },
+          { type: 'system', text: `Error: ${error.message}` }
+        ]);
       }
     } else {
-      // 处理普通输入
-      response = `You entered: ${value}`;
+      // 处理普通输入 - 使用 AI 服务进行对话
+      await handleAIConversation(value);
+    }
+  }
+
+  // 处理 AI 对话
+  async function handleAIConversation(prompt) {
+    const aiService = serviceManager.getService('ai');
+    
+    if (!aiService) {
+      setMessages(prev => [
+        ...prev,
+        { type: 'user', text: prompt },
+        { type: 'system', text: 'AI service not initialized' }
+      ]);
+      return;
     }
 
-    // 添加到消息列表
-    setMessages(prev => [
-      ...prev,
-      { type: 'user', text: value },
-      { type: 'system', text: response || '' }
-    ]);
+    if (aiService.isBusy()) {
+      setMessages(prev => [
+        ...prev,
+        { type: 'user', text: prompt },
+        { type: 'system', text: 'AI is currently processing a message. Please wait...' }
+      ]);
+      return;
+    }
 
-    // 清空输入
-    setInput('');
-    setCursorPosition(0);
+    try {
+      // 清空消息历史，避免累积历史消息
+      // aiService.clearMessages();
+      
+      // 添加用户消息
+      setMessages(prev => [
+        ...prev,
+        { type: 'user', text: prompt }
+      ]);
+
+      // 累积助手消息内容
+      let assistantMessageContent = '';
+      
+      // 处理消息流
+      for await (const message of aiService.sendMessage(prompt)) {
+        switch (message.type) {
+          case 'assistant':
+            // 处理助手消息
+            const assistantContent = message.message.content
+              .filter(block => block.type === 'text')
+              .map(block => block.text)
+              .join('');
+            if (assistantContent) {
+              assistantMessageContent += assistantContent;
+              // 更新最后一条消息（如果是系统消息）
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage && lastMessage.type === 'system' && lastMessage.isAssistant) {
+                  lastMessage.text = assistantMessageContent;
+                } else {
+                  newMessages.push({ type: 'system', text: assistantMessageContent, isAssistant: true });
+                }
+                return newMessages;
+              });
+            }
+            break;
+            
+          case 'user':
+            // 处理用户消息（工具结果等）
+            const userContent = message.message.content
+              .filter(block => block.type === 'tool_result')
+              .map(block => {
+                if (block.is_error) {
+                  return `[Tool Error]: ${block.content}`;
+                }
+                return `[Tool Result]: ${block.content}`;
+              })
+              .join('\n');
+            if (userContent) {
+              setMessages(prev => [
+                ...prev,
+                { type: 'system', text: userContent }
+              ]);
+            }
+            break;
+            
+          case 'system':
+            // 处理系统消息
+            if (message.subtype === 'api_error') {
+              setMessages(prev => [
+                ...prev,
+                { type: 'system', text: `[API Error]: ${message.content}` }
+              ]);
+            }
+            break;
+            
+          case 'result':
+            // 处理最终结果
+            if (message.subtype === 'success') {
+              setMessages(prev => [
+                ...prev,
+                { type: 'system', text: `[Usage]: ${JSON.stringify(message.usage)}` }
+              ]);
+            } else if (message.is_error) {
+              setMessages(prev => [
+                ...prev,
+                { type: 'system', text: `[Error]: ${message.result || 'An error occurred'}` }
+              ]);
+            }
+            break;
+            
+          case 'progress':
+            // 处理进度消息
+            setMessages(prev => [
+              ...prev,
+              { type: 'system', text: `[Progress]: ${message.content}` }
+            ]);
+            break;
+            
+          case 'attachment':
+            // 处理附件消息
+            if (message.attachment.type === 'max_turns_reached') {
+              setMessages(prev => [
+                ...prev,
+                { type: 'system', text: `[Info]: Maximum turns (${message.attachment.maxTurns}) reached` }
+              ]);
+            } else if (message.attachment.type === 'max_budget_reached') {
+              setMessages(prev => [
+                ...prev,
+                { type: 'system', text: `[Info]: Maximum budget ($${message.attachment.budget}) reached` }
+              ]);
+            }
+            break;
+        }
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        setMessages(prev => [
+          ...prev,
+          { type: 'system', text: '[Interrupted]: AI response was interrupted' }
+        ]);
+      } else {
+        setMessages(prev => [
+          ...prev,
+          { type: 'system', text: `[Error]: ${error.message}` }
+        ]);
+      }
+    }
   }
 
   return React.createElement(Box, { flexDirection: 'column', height: '100%' },
@@ -153,7 +299,18 @@ function App() {
         React.createElement(Text, null, '/help: Show help message'),
         React.createElement(Text, null, '/exit: Exit the program'),
         React.createElement(Text, null, '/clear: Clear the terminal'),
-        React.createElement(Text, null, '/history: Show command history')
+        React.createElement(Text, null, '/history: Show command history'),
+        React.createElement(Text, null, '/model: View or switch AI model'),
+        React.createElement(Text, null, '/reset: Clear AI conversation history')
+      )
+    ),
+    
+    // AI 对话提示
+    React.createElement(Box, { marginBottom: 2, flexDirection: 'column' },
+      React.createElement(Text, null, 'AI Conversation:'),
+      React.createElement(Box, { marginLeft: 2, flexDirection: 'column' },
+        React.createElement(Text, null, 'Just type your message to chat with AI'),
+        React.createElement(Text, null, 'AI will respond using the QueryEngine')
       )
     ),
     

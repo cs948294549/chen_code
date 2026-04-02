@@ -8,6 +8,8 @@ import writeCommand from './commands/write/index.js';
 import cronCreateCommand from './commands/cron/create/index.js';
 import cronDeleteCommand from './commands/cron/delete/index.js';
 import cronListCommand from './commands/cron/list/index.js';
+import modelCommand from './commands/model/index.js';
+import resetCommand from './commands/reset/index.js';
 
 const commands = {};
 const commandSources = {};
@@ -76,6 +78,10 @@ function initCommands() {
   registerCommand('cron:create', cronCreateCommand.handler, 'Create a scheduled task', { source: 'builtin' });
   registerCommand('cron:delete', cronDeleteCommand.handler, 'Delete a scheduled task', { source: 'builtin' });
   registerCommand('cron:list', cronListCommand.handler, 'List all scheduled tasks', { source: 'builtin' });
+  
+  // AI 相关命令
+  registerCommand('model', modelCommand.handler, 'Switch or view the current AI model', { source: 'builtin' });
+  registerCommand('reset', resetCommand.handler, 'Clear the AI conversation history', { source: 'builtin' });
   
   // 可以在这里加载额外的命令
   // 例如从插件、外部目录等

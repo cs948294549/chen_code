@@ -412,5 +412,257 @@ useInput() → handleInput() → textInputState.handleInput() → setInput() →
 
 
 
+==============6.参考claude-code文件夹内的QueryEngine.ts功能架构，
+查询引擎是 Claude Code 的核心运行时，负责管理「用户输入 → 模型调用 → 工具执行 → 结果返回」的完整循环。
+它是一个 **async generator** 架构，通过 `yield` 向调用方推送流式事件，通过 `return` 返回终止原因
+参照该功能结构实现查询引擎，后面查询的SDK会对接不同的AI厂家，需要预留接口
+QueryEngine.ts (SDK/print 入口)
+  └─→ query.ts::query() (async generator 包装器)
+        └─→ queryLoop() (while(true) 主循环)
+              ├── Phase 1: 上下文准备 (压缩管线)
+              ├── Phase 2: API 调用 (流式接收)
+              ├── Phase 3: 工具执行 (并发/串行编排)
+              ├── Phase 4: 停止钩子 (post-turn 处理)
+              └── Phase 5: 继续/终止判定
 
-使用ES 模块语法
+src/
+├── types/
+│   └── message.js          # 消息类型定义
+├── services/
+│   └── api/
+│       ├── claude.js       # API 调用实现
+│       └── errors.js       # 错误处理
+├── tools/
+│   └── ExampleTool.js      # 示例工具
+├── QueryEngine.js          # 查询引擎核心类
+├── Tool.js                 # 工具定义和工具使用上下文
+├── query.js                # 查询循环实现
+└── index.js                # 示例入口
+
+## 核心功能实现
+1. 异步生成器架构 ：使用 async generator 模式，通过 yield 向调用方推送流式事件
+2. 完整的查询循环 ：
+   - 上下文准备和压缩
+   - API 调用和流式接收
+   - 工具执行和结果处理
+   - 停止钩子和后处理
+   - 继续/终止判定
+3. 工具系统 ：支持自定义工具的注册和执行
+4. 错误处理 ：包括 API 错误、工具执行错误等
+5. 预算管理 ：支持最大轮次和预算限制
+6. 可扩展性 ：预留了接口以支持不同的 AI 厂家 SDK 对接
+## 关键类和函数
+- QueryEngine ：核心引擎类，管理整个查询生命周期
+- query ：查询循环实现，处理消息流和工具执行
+- Tool ：工具基类，定义工具接口
+- ToolUseContext ：工具使用上下文，提供工具执行所需的环境
+
+
+// 使用便捷函数
+for await (const message of ask({
+  prompt: 'Hello, can you use the example tool to greet John?',
+  tools: [exampleTool],
+  canUseTool: async () => ({ behavior: 'allow' })
+})) {
+  // 处理消息
+}
+
+// 直接使用 QueryEngine 类
+const engine = new QueryEngine({
+  tools: [exampleTool],
+  canUseTool: async () => ({ behavior: 'allow' })
+});
+
+for await (const message of engine.submitMessage('Can you use the example tool again to greet Jane?')) {
+  // 处理消息
+}
+
+
+必要前提：
+1.不需要自动运行，主机有加密系统，无法正常运行程序，等待我自己验证即可
+2.全局使用ES 模块语法
+3.在设计结构时需要先参考claude-code文件夹的项目架构，寻找相似的结构进行参考设计
+
+当前需求：
+现在对话好像正常了，开始实现一个豆包AI的服务，接入到统一的ai模块中，方便切换，豆包相关的api-key留空，从配置文件读取
+
+"doubao": {
+ "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+ "model": "doubao-seed-2-0-pro-260215"
+},
+
+==============7.
+必要前提：
+本次只做架构分析
+
+当前需求：
+检查claude-code程序目录，分析AI通过对话调用本地工具（commands）是如何实现的，
+给出符合本项目的架构设计以及开发模块的详细拆解，方便后续逐步完成
+
+
+## Claude-Code 项目架构分析
+### 核心架构组件 1. 命令系统 ( src/commands/ )
+- 每个命令都是一个独立的模块，放在 src/commands/ 目录下
+- 命令有三种类型：
+  - local : 本地命令，直接在本地执行
+  - local-jsx : 使用Ink UI的本地命令
+  - prompt : 提示词命令，生成提示词发送给AI 2. 命令注册表 ( src/commands.ts )
+- 导入所有命令并统一管理
+- 提供 getCommands() 函数获取所有可用命令
+- 支持多种命令来源：内置命令、技能目录命令、插件命令、工作流命令等 3. 工具系统 ( src/Tool.ts )
+- 定义了 Tool 接口，所有工具必须实现这个接口
+- 提供 buildTool() 函数创建工具，提供默认值
+- 工具负责执行具体的操作，返回结果给AI 4. 查询引擎 ( src/QueryEngine.ts )
+- 管理整个对话生命周期
+- 维护会话状态（消息、文件缓存、用量等）
+- 调用 query() 函数执行实际的对话流程 5. 查询循环 ( src/query.ts )
+- 核心对话循环实现
+- 处理AI响应，检测工具调用
+- 调用工具执行器执行工具
+- 处理工具结果，继续对话 6. 工具执行器 ( src/services/tools/ )
+- toolOrchestration.ts : 工具编排，管理工具的执行
+- StreamingToolExecutor.ts : 流式工具执行器，支持并发执行多个工具
+
+用户输入
+    ↓
+processUserInput() - 处理用户输入，检测命令
+    ↓
+QueryEngine.submitMessage() - 启动查询
+    ↓
+query() - 核心查询循环
+    ↓
+调用AI API - 发送消息给AI
+    ↓
+检测工具调用 - 检查AI响应中的tool_use
+    ↓
+runTools() - 执行工具
+    ↓
+工具返回结果 - 将结果返回给AI
+    ↓
+继续循环 - 直到AI返回最终结果
+
+
+### 模块开发拆解 阶段一：基础架构
+1. 创建命令类型定义 ( src/types/command.js )
+   
+   - 定义 Command 接口
+   - 支持命令类型： local 、 prompt
+   - 包含命令元数据：name、description、aliases等
+2. 创建工具类型定义 ( src/types/tool.js )
+   
+   - 定义 Tool 接口
+   - 包含：call()、inputSchema、description()等方法
+   - 定义 ToolUseContext 接口
+3. 创建工具构建器 ( src/tools/buildTool.js )
+   
+   - 提供 buildTool() 函数
+   - 为工具提供默认值
+   - 简化工具创建 阶段二：核心服务
+4. 创建命令注册表 ( src/services/commands.js )
+   
+   - 导入并注册所有命令
+   - 提供 getCommands() 函数
+   - 提供 findCommand() 函数
+5. 创建工具注册表 ( src/services/tools.js )
+   
+   - 导入并注册所有工具
+   - 提供 getTools() 函数
+   - 提供 findToolByName() 函数
+6. 创建工具执行器 ( src/services/toolExecutor.js )
+   
+   - 实现 executeTool() 函数
+   - 处理工具输入验证
+   - 处理工具权限检查
+   - 执行工具并返回结果 阶段三：集成到查询流程
+7. 修改 QueryEngine.js
+   
+   - 集成命令和工具
+   - 更新配置，传入commands和tools
+   - 初始化工具上下文
+8. 修改 query.js
+   
+   - 集成工具执行器
+   - 检测AI响应中的工具调用
+   - 调用工具执行器执行工具
+   - 将工具结果返回给AI 阶段四：实现具体命令和工具
+9. 实现Read命令和工具
+   
+   - src/commands/read/index.js : 命令定义
+   - src/tools/ReadTool.js : 工具实现
+   - 支持读取文件内容
+10. 实现Write命令和工具
+    
+    - src/commands/write/index.js : 命令定义
+    - src/tools/WriteTool.js : 工具实现
+    - 支持写入文件内容
+11. 实现Edit命令和工具
+    
+    - src/commands/edit/index.js : 命令定义
+    - src/tools/EditTool.js : 工具实现
+    - 支持编辑文件内容
+12. 实现Search命令和工具
+    
+    - src/commands/search/index.js : 命令定义
+    - src/tools/SearchTool.js : 工具实现
+    - 支持搜索文件内容 阶段五：增强功能
+13. 添加命令帮助系统
+    
+    - 实现 help 命令
+    - 显示所有可用命令
+    - 显示命令详细说明
+14. 添加工具搜索功能
+    
+    - 实现工具搜索提示词
+    - 帮助AI选择合适的工具
+    - 提供工具使用说明
+15. 添加工具使用统计
+    
+    - 记录工具使用次数
+    - 记录工具执行时间
+    - 显示工具使用统计
+
+## 关键实现要点
+### 1. 工具与AI的交互
+- AI通过 tool_use 调用工具
+- 工具返回 tool_result 给AI
+- AI根据工具结果继续对话
+### 2. 命令与工具的关系
+- 命令：用户直接调用的功能（如 /read file.txt ）
+- 工具：AI可以自动调用的功能（如通过对话让AI读文件）
+- 两者可以共享底层实现
+### 3. 工具执行流程
+### 4. 系统提示词集成
+- 在系统提示词中描述所有可用工具
+- 告诉AI如何使用工具
+- 提供工具使用示例
+
+
+
+==============8.
+必要前提：
+1.不需要自动运行，主机有加密系统，无法正常运行程序，等待我自己验证即可
+2.全局使用ES 模块语法
+3.在设计结构时需要先参考claude-code文件夹的项目架构，寻找相似的结构进行参考设计
+
+当前需求：
+现在终端可以使用 /command 调用工具，当前需求是实现AI也能够实现底层工具的调用功能。
+参考claude-code文件夹内设计思路
+## 关键实现要点
+### 1. 工具与AI的交互
+- AI通过 tool_use 调用工具
+- 工具返回 tool_result 给AI
+- AI根据工具结果继续对话
+### 2. 命令与工具的关系
+- 命令：用户直接调用的功能（如 /read file.txt ）
+- 工具：AI可以自动调用的功能（如通过对话让AI读文件）
+- 两者可以共享底层实现
+
+
+==============9.
+必要前提：
+1.不需要自动运行，主机有加密系统，无法正常运行程序，等待我自己验证即可
+2.全局使用ES 模块语法
+3.在设计结构时需要先参考claude-code文件夹的项目架构，寻找相似的结构进行参考设计
+
+当前需求：
+

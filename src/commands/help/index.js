@@ -22,6 +22,15 @@ const helpCommand = {
     helpText += '  /cron:create <min> <hour> <day> <month> <weekday> <prompt> - Create a scheduled task\n';
     helpText += '  /cron:delete <task_id>   - Delete a scheduled task\n';
     helpText += '  /cron:list               - List all scheduled tasks\n';
+    helpText += '  /model                   - View current AI configuration\n';
+    helpText += '  /model claude            - Switch to Claude provider\n';
+    helpText += '  /model doubao            - Switch to Doubao provider\n';
+    helpText += '  /model claude-3-opus     - Switch to a specific model\n';
+    helpText += '  /reset                   - Clear AI conversation history\n';
+    helpText += '\n=== AI Conversation ===\n';
+    helpText += '  Just type your message to chat with AI\n';
+    helpText += '  AI will respond using the QueryEngine\n';
+    helpText += '  Supports tool execution and multi-turn conversations\n';
     helpText += '\n=== Keyboard Shortcuts ===\n';
     helpText += '  Up Arrow                 - Previous command\n';
     helpText += '  Down Arrow               - Next command\n';
