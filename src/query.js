@@ -2,6 +2,7 @@
 import { callModel } from './services/api/claude.js';
 import { categorizeRetryableAPIError } from './services/api/errors.js';
 import { findToolByName } from './Tool.js';
+import { runTools } from './services/toolExecutor.js';
 import { 
   AssistantMessage, 
   UserMessage, 
@@ -28,11 +29,9 @@ export function productionDeps(customCallModel = null) {
     uuid,
     callModel: customCallModel || callModel,
     microcompact: async (messages, toolUseContext, querySource) => {
-      // Placeholder implementation
       return { messages };
     },
     autocompact: async (messages, toolUseContext, options, querySource, tracking, snipTokensFreed) => {
-      // Placeholder implementation
       return { compactionResult: null };
     }
   };
@@ -103,7 +102,6 @@ export async function* query(params) {
 
 // Query loop
 async function* queryLoop(params, consumedCommandUuids) {
-  // Immutable params
   const {
     systemPrompt,
     userContext,
@@ -115,7 +113,6 @@ async function* queryLoop(params, consumedCommandUuids) {
   } = params;
   const deps = params.deps || productionDeps();
 
-  // Mutable state
   let state = new State({
     messages: params.messages,
     toolUseContext: params.toolUseContext,
@@ -129,9 +126,10 @@ async function* queryLoop(params, consumedCommandUuids) {
     transition: undefined
   });
 
-  // Main loop
+  let consecutiveErrorCount = 0;
+  const MAX_CONSECUTIVE_ERRORS = 3;
+
   while (true) {
-    // Destructure state
     let { toolUseContext } = state;
     const {
       messages,
@@ -144,10 +142,8 @@ async function* queryLoop(params, consumedCommandUuids) {
       turnCount
     } = state;
 
-    // Yield request start event
     yield new RequestStartEvent();
 
-    // Initialize query tracking
     const queryTracking = toolUseContext.queryTracking
       ? {
           chainId: toolUseContext.queryTracking.chainId,
@@ -163,10 +159,8 @@ async function* queryLoop(params, consumedCommandUuids) {
       queryTracking
     };
 
-    // Prepare messages for query
     let messagesForQuery = [...messages];
 
-    // Apply microcompact
     const microcompactResult = await deps.microcompact(
       messagesForQuery,
       toolUseContext,
@@ -174,7 +168,6 @@ async function* queryLoop(params, consumedCommandUuids) {
     );
     messagesForQuery = microcompactResult.messages;
 
-    // Apply autocompact
     const { compactionResult } = await deps.autocompact(
       messagesForQuery,
       toolUseContext,
@@ -191,26 +184,22 @@ async function* queryLoop(params, consumedCommandUuids) {
     );
 
     if (compactionResult) {
-      // Yield compaction messages
       for (const message of compactionResult.summaryMessages) {
         yield message;
       }
       messagesForQuery = compactionResult.summaryMessages;
     }
 
-    // Update tool use context
     toolUseContext = {
       ...toolUseContext,
       messages: messagesForQuery
     };
 
-    // Variables for tracking
     const assistantMessages = [];
     const toolResults = [];
     const toolUseBlocks = [];
     let needsFollowUp = false;
 
-    // Call model
     try {
       for await (const message of deps.callModel({
         messages: messagesForQuery,
@@ -229,7 +218,6 @@ async function* queryLoop(params, consumedCommandUuids) {
         if (message.type === 'assistant') {
           assistantMessages.push(message);
 
-          // Check for tool use blocks
           const msgToolUseBlocks = message.message.content.filter(
             content => content.type === 'tool_use'
           );
@@ -249,68 +237,46 @@ async function* queryLoop(params, consumedCommandUuids) {
       return { reason: 'api_error' };
     }
 
-    // Check if we need to follow up with tool execution
     if (needsFollowUp) {
-      // Execute tools
-      for (const toolBlock of toolUseBlocks) {
-        const tool = findToolByName(toolUseContext.options.tools || [], toolBlock.name);
-        if (tool) {
-          try {
-            // Check if we can use the tool
-            const permission = await canUseTool(tool, toolBlock.input, toolUseContext);
-            if (permission.behavior === 'allow') {
-              // Execute the tool
-              const result = await tool.execute(toolBlock.input);
-              
-              // Create tool result message
-              const toolResultMessage = new UserMessage({
-                role: 'user',
-                content: [{
-                  type: 'tool_result',
-                  content: result,
-                  tool_use_id: toolBlock.id
-                }]
-              }, deps.uuid());
-              
-              yield toolResultMessage;
-              toolResults.push(toolResultMessage);
-            } else {
-              // Tool use denied
-              const toolResultMessage = new UserMessage({
-                role: 'user',
-                content: [{
-                  type: 'tool_result',
-                  content: 'Tool use denied',
-                  is_error: true,
-                  tool_use_id: toolBlock.id
-                }]
-              }, deps.uuid());
-              
-              yield toolResultMessage;
-              toolResults.push(toolResultMessage);
+      let updatedToolUseContext = toolUseContext;
+      let hasErrorToolResult = false;
+      
+      for await (const update of runTools(toolUseBlocks, assistantMessages, canUseTool, toolUseContext)) {
+        if (update.message) {
+          yield update.message;
+          toolResults.push(update.message);
+          
+          if (update.message.message && Array.isArray(update.message.message.content)) {
+            const hasError = update.message.message.content.some(
+              block => block.type === 'tool_result' && block.is_error
+            );
+            if (hasError) {
+              hasErrorToolResult = true;
             }
-          } catch (error) {
-            console.error('Error executing tool:', error);
-            const toolResultMessage = new UserMessage({
-              role: 'user',
-              content: [{
-                type: 'tool_result',
-                content: error.message || 'An error occurred while executing the tool',
-                is_error: true,
-                tool_use_id: toolBlock.id
-              }]
-            }, deps.uuid());
-            
-            yield toolResultMessage;
-            toolResults.push(toolResultMessage);
           }
+        }
+        if (update.newContext) {
+          updatedToolUseContext = update.newContext;
         }
       }
 
-      // Continue the loop with tool results
+      if (hasErrorToolResult) {
+        consecutiveErrorCount++;
+        if (consecutiveErrorCount >= MAX_CONSECUTIVE_ERRORS) {
+          yield new SystemMessage(
+            'Too many consecutive tool call errors. Stopping execution to avoid infinite loop.',
+            'user_error',
+            deps.uuid()
+          );
+          return { reason: 'max_consecutive_errors' };
+        }
+      } else {
+        consecutiveErrorCount = 0;
+      }
+
       state = new State({
         messages: [...messages, ...assistantMessages, ...toolResults],
-        toolUseContext,
+        toolUseContext: updatedToolUseContext,
         maxOutputTokensOverride,
         autoCompactTracking,
         stopHookActive,
@@ -323,7 +289,6 @@ async function* queryLoop(params, consumedCommandUuids) {
       continue;
     }
 
-    // Check if we've reached max turns
     if (maxTurns && turnCount >= maxTurns) {
       yield new AttachmentMessage(
         {
@@ -336,7 +301,6 @@ async function* queryLoop(params, consumedCommandUuids) {
       return { reason: 'max_turns' };
     }
 
-    // End of loop
     return { reason: 'completed' };
   }
 }

@@ -4,13 +4,13 @@ import { FileOperations } from '../utils/operations/files/index.js';
 
 export const TouchTool = buildTool({
   name: 'touch_file',
-  description: 'Create a new file if it does not exist',
+  description: 'Create a new file if it does not exist. Must provide the path parameter.',
   inputSchema: {
     type: 'object',
     properties: {
       path: {
         type: 'string',
-        description: 'The path to the file to create'
+        description: 'The file path, e.g. "file2.txt"'
       }
     },
     required: ['path']

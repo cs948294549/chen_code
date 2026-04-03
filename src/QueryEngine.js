@@ -13,6 +13,7 @@ import {
 } from './types/message.js';
 import { createToolUseContext } from './Tool.js';
 import { uuid } from './query.js';
+import { logger } from './utils/logger.js';
 
 // QueryEngine configuration
 export class QueryEngineConfig {
@@ -136,6 +137,10 @@ export class QueryEngine {
       abortController: this.abortController,
       messages: this.mutableMessages
     });
+
+    const toolsCount = toolUseContext.options.tools ? toolUseContext.options.tools.length : 0;
+    const toolNames = toolUseContext.options.tools ? toolUseContext.options.tools.map(t => t.name).join(', ') : 'none';
+    logger.info(`QueryEngine.submitMessage: toolUseContext.options.tools = ${toolsCount} tools: ${toolNames}`);
 
     // Prepare system prompt
     let systemPrompt = customSystemPrompt || 'You are Claude, an AI assistant.';

@@ -1,6 +1,8 @@
 // Tool execution service
 import { findToolByName } from '../Tool.js';
 import { logger } from '../utils/logger.js';
+import { UserMessage } from '../types/message.js';
+import { uuid } from '../query.js';
 
 export async function executeTool(tool, input, toolUseContext, canUseTool, assistantMessage, toolUseID) {
   try {
@@ -32,22 +34,56 @@ export async function executeTool(tool, input, toolUseContext, canUseTool, assis
   }
 }
 
-export async function runTools(toolUseBlocks, assistantMessages, canUseTool, toolUseContext, yieldMessage) {
-  const toolResults = [];
-
+export async function* runTools(toolUseBlocks, assistantMessages, canUseTool, toolUseContext) {
   for (const toolBlock of toolUseBlocks) {
+    // 跳过缺少名称的工具调用
+    if (!toolBlock.name) {
+      const errorResult = {
+        type: 'text',
+        text: 'Tool name is missing',
+        is_error: true
+      };
+      
+      const toolResultMessage = new UserMessage({
+        role: 'user',
+        content: [{
+          type: 'tool_result',
+          content: errorResult.text,
+          is_error: true,
+          tool_use_id: toolBlock.id
+        }]
+      }, uuid());
+      
+      yield {
+        message: toolResultMessage,
+        newContext: toolUseContext
+      };
+      continue;
+    }
+    
     const tool = findToolByName(toolUseContext.options.tools || [], toolBlock.name);
     
     if (!tool) {
       const errorResult = {
-        type: 'error',
-        content: `Tool ${toolBlock.name} not found`,
+        type: 'text',
+        text: `Tool ${toolBlock.name} not found`,
         is_error: true
       };
-      toolResults.push({
-        tool_use_id: toolBlock.id,
-        result: errorResult
-      });
+      
+      const toolResultMessage = new UserMessage({
+        role: 'user',
+        content: [{
+          type: 'tool_result',
+          content: errorResult.text,
+          is_error: true,
+          tool_use_id: toolBlock.id
+        }]
+      }, uuid());
+      
+      yield {
+        message: toolResultMessage,
+        newContext: toolUseContext
+      };
       continue;
     }
 
@@ -64,11 +100,21 @@ export async function runTools(toolUseBlocks, assistantMessages, canUseTool, too
       toolBlock.id
     );
 
-    toolResults.push({
-      tool_use_id: toolBlock.id,
-      result: result
-    });
+    const toolContent = result.text || result.content || JSON.stringify(result);
+    
+    const toolResultMessage = new UserMessage({
+      role: 'user',
+      content: [{
+        type: 'tool_result',
+        content: toolContent,
+        is_error: result.is_error || false,
+        tool_use_id: toolBlock.id
+      }]
+    }, uuid());
+    
+    yield {
+      message: toolResultMessage,
+      newContext: toolUseContext
+    };
   }
-
-  return toolResults;
 }

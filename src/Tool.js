@@ -27,12 +27,22 @@ export function toolMatchesName(tool, name) {
 
 export class ToolUseContext {
   constructor(options) {
-    this.options = options || {};
-    this.abortController = options.abortController || new AbortController();
-    this.getAppState = options.getAppState || (() => ({}));
-    this.setAppState = options.setAppState || (() => {});
-    this.messages = options.messages || [];
-    this.usage = options.usage || { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
+    // 处理嵌套的 options 结构
+    if (options && options.options) {
+      this.options = options.options || {};
+      this.abortController = options.abortController || new AbortController();
+      this.getAppState = options.getAppState || (() => ({}));
+      this.setAppState = options.setAppState || (() => {});
+      this.messages = options.messages || [];
+      this.usage = options.usage || { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
+    } else {
+      this.options = options || {};
+      this.abortController = new AbortController();
+      this.getAppState = () => ({});
+      this.setAppState = () => {};
+      this.messages = [];
+      this.usage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
+    }
     this._inProgressToolUseIDs = new Set();
   }
 

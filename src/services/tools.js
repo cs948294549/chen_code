@@ -3,6 +3,7 @@ import { ExampleTool } from '../tools/ExampleTool.js';
 import { ReadTool } from '../tools/ReadTool.js';
 import { WriteTool } from '../tools/WriteTool.js';
 import { TouchTool } from '../tools/TouchTool.js';
+import { logger } from '../utils/logger.js';
 
 const tools = [];
 const toolSources = {};
@@ -13,6 +14,7 @@ function registerTool(tool, source = 'builtin') {
     toolSources[source] = [];
   }
   toolSources[source].push(tool);
+  logger.info(`Registered tool: ${tool.name} from ${source}`);
 }
 
 function registerToolSource(source, toolsList) {
@@ -25,6 +27,10 @@ function registerToolSource(source, toolsList) {
 }
 
 function getTools() {
+  // 确保工具已经初始化
+  if (tools.length === 0) {
+    initTools();
+  }
   return tools;
 }
 
@@ -37,12 +43,15 @@ function getToolsBySource(source) {
 }
 
 function initTools() {
+  logger.info('Initializing tools...');
   registerTool(ExampleTool, 'builtin');
   registerTool(ReadTool, 'builtin');
   registerTool(WriteTool, 'builtin');
   registerTool(TouchTool, 'builtin');
+  logger.info(`Tools initialized. Total tools: ${tools.length}`);
 }
 
+// 立即初始化工具
 initTools();
 
 export {

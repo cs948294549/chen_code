@@ -6,6 +6,7 @@ import { getTools } from './tools.js';
 import { config } from '../config/index.js';
 import * as claudeAPI from './api/claude.js';
 import * as doubaoAPI from './api/doubao.js';
+import { logger } from '../utils/logger.js';
 
 class AIService {
   constructor() {
@@ -37,6 +38,10 @@ class AIService {
 
     // 初始化工具 - 从工具注册表获取
     this.tools = options.tools || getTools();
+    
+    const toolsCount = this.tools ? this.tools.length : 0;
+    const toolNames = this.tools ? this.tools.map(t => t.name).join(', ') : 'none';
+    logger.info(`AI Service initialized with ${toolsCount} tools: ${toolNames}`);
 
     // 创建 QueryEngine 实例
     this.createEngine();
@@ -46,6 +51,10 @@ class AIService {
   createEngine() {
     // 根据提供商选择 API 调用函数
     const callModel = this.getProviderAPI();
+    
+    const toolsCount = this.tools ? this.tools.length : 0;
+    const toolNames = this.tools ? this.tools.map(t => t.name).join(', ') : 'none';
+    logger.info(`Creating QueryEngine with ${toolsCount} tools: ${toolNames}`);
     
     this.engine = new QueryEngine({
       tools: this.tools,
@@ -60,6 +69,10 @@ class AIService {
       // 注入提供商特定的 API 调用
       customCallModel: callModel
     });
+    
+    const engineToolsCount = this.engine.config.tools ? this.engine.config.tools.length : 0;
+    const engineToolNames = this.engine.config.tools ? this.engine.config.tools.map(t => t.name).join(', ') : 'none';
+    logger.info(`QueryEngine created. Engine config tools: ${engineToolsCount} tools: ${engineToolNames}`);
   }
 
   // 获取当前提供商的 API 调用函数

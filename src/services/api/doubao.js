@@ -108,7 +108,12 @@ export async function* callModel({ messages, systemPrompt, tools, signal, option
   
   logData.request.model = model;
   
-  logger.info(`Calling Doubao model with: ${model}, messages: ${messages.length}, tools: ${tools.length}, logId: ${logId}`);
+  const toolsCount = tools ? tools.length : 0;
+  logger.info(`Calling Doubao model with: ${model}, messages: ${messages.length}, tools: ${toolsCount}, logId: ${logId}`);
+  
+  if (tools && tools.length > 0) {
+    logger.info(`Tools being sent to API: ${JSON.stringify(tools.map(t => ({ name: t.name, description: t.description })))}`);
+  }
 
   // 构建请求体
   const requestBody = {
@@ -348,10 +353,14 @@ function formatMessages(messages, systemPrompt) {
         content: formatUserContent(msg.message.content)
       });
     } else if (msg.type === 'assistant') {
-      formatted.push({
-        role: 'assistant',
-        content: formatAssistantContent(msg.message.content)
-      });
+      const assistantContent = formatAssistantContent(msg.message.content);
+      // 只添加非空内容的助手消息
+      if (assistantContent && (typeof assistantContent === 'string' || assistantContent.length > 0)) {
+        formatted.push({
+          role: 'assistant',
+          content: assistantContent
+        });
+      }
     }
   }
   
@@ -394,16 +403,7 @@ function formatAssistantContent(content) {
     if (block.type === 'text') {
       return { type: 'text', text: block.text };
     }
-    if (block.type === 'tool_use') {
-      return {
-        type: 'tool_use',
-        id: block.id,
-        function: {
-          name: block.name,
-          arguments: JSON.stringify(block.input)
-        }
-      };
-    }
+    // 豆包 API 不支持 tool_use 类型，只返回文本内容
     return null;
   }).filter(Boolean);
 }

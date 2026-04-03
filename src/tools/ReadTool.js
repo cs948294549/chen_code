@@ -4,13 +4,13 @@ import { FileOperations } from '../utils/operations/files/index.js';
 
 export const ReadTool = buildTool({
   name: 'read_file',
-  description: 'Read the content of a file',
+  description: 'Read the content of a file. Must provide the path parameter.',
   inputSchema: {
     type: 'object',
     properties: {
       path: {
         type: 'string',
-        description: 'The path to the file to read'
+        description: 'The file path, e.g. "file2.txt"'
       }
     },
     required: ['path']
