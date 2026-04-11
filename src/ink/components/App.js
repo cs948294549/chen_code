@@ -6,6 +6,31 @@ import { executeCommand } from '../../commands.js';
 import { addToHistory, resetHistory } from '../../history.js';
 import serviceManager from '../../services/index.js';
 
+// 自动换行函数 - 根据指定宽度换行文本
+function wrapText(text, maxWidth = 80) {
+  if (!text) return '';
+  
+  const lines = [];
+  let currentLine = '';
+  
+  // 按字符遍历（支持中文）
+  for (const char of text) {
+    // 检查是否需要换行
+    if (currentLine.length >= maxWidth) {
+      lines.push(currentLine);
+      currentLine = '';
+    }
+    currentLine += char;
+  }
+  
+  // 添加最后一行
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  
+  return lines.join('\n');
+}
+
 function App() {
   const [input, setInput] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
@@ -170,12 +195,30 @@ function App() {
         { type: 'user', text: prompt }
       ]);
 
-      // 累积助手消息内容
+      // 累积消息内容
       let assistantMessageContent = '';
+      let thinkingMessageContent = '';
       
       // 处理消息流
       for await (const message of aiService.sendMessage(prompt)) {
+        // console.log('=====:', message);
         switch (message.type) {
+          case 'thinking':
+            // 累积 thinking 内容，不换行
+            thinkingMessageContent += message.content.content || '';
+            // 更新最后一条消息（如果是 thinking 消息）
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessage = newMessages[newMessages.length - 1];
+              
+              if (lastMessage && lastMessage.type === 'assistant' && lastMessage.isThinking) {
+                lastMessage.text = thinkingMessageContent;
+              } else {
+                newMessages.push({ type: 'assistant', text: thinkingMessageContent, isThinking: true });
+              }
+              return newMessages;
+            });
+            break;
           case 'assistant':
             // 处理助手消息
             const assistantContent = message.message.content

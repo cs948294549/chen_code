@@ -14,6 +14,13 @@ export class AssistantMessage extends Message {
   }
 }
 
+export class ThinkingMessage extends Message {
+  constructor(content, uuid) {
+    super('thinking', uuid);
+    this.content = content;
+  }
+}
+
 export class UserMessage extends Message {
   constructor(message, uuid) {
     super('user', uuid);

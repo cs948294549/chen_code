@@ -6,6 +6,7 @@ import { getTools } from './tools.js';
 import { config } from '../config/index.js';
 import * as claudeAPI from './api/claude.js';
 import * as doubaoAPI from './api/doubao.js';
+import * as doubaoMock from './api/doubao-mock.js';
 import { logger } from '../utils/logger.js';
 
 class AIService {
@@ -15,12 +16,7 @@ class AIService {
     this.isProcessing = false;
     this.currentAbortController = null;
     this.tools = [];
-    this.config = {
-      provider: 'claude', // 'claude' | 'doubao'
-      model: 'claude-3-opus-20240229',
-      maxTurns: 10,
-      maxBudgetUsd: 10
-    };
+    this.config = {};
   }
 
   // 初始化 AI 服务
@@ -29,7 +25,7 @@ class AIService {
     config.init();
     
     this.config = {
-      provider: options.provider || config.getProvider() || 'claude',
+      provider: options.provider || config.getProvider() || 'defaultProvider',
       model: options.model || config.getModel() || 'claude-3-opus-20240229',
       maxTurns: options.maxTurns || config.get('settings.maxTurns', 10),
       maxBudgetUsd: options.maxBudgetUsd || config.get('settings.maxBudgetUsd', 10),
@@ -78,6 +74,8 @@ class AIService {
   // 获取当前提供商的 API 调用函数
   getProviderAPI() {
     switch (this.config.provider) {
+      case 'doubaoMock':
+        return doubaoMock.callModel;
       case 'doubao':
         return doubaoAPI.callModel;
       case 'claude':

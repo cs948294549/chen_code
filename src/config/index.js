@@ -38,6 +38,13 @@ const DEFAULT_CONFIG = {
     model: 'doubao-seed-2-0-pro-260215'
   },
   
+  // Doubao (豆包) 模拟配置
+  doubaoMock: {
+    apiKey: '',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3/',
+    model: 'doubao-seed-2-0-pro-260215'
+  },
+  
   // 其他配置
   settings: {
     maxTurns: 10,

@@ -6,6 +6,7 @@ import { uuid } from '../../query.js';
 import fs from 'fs';
 import path from 'path';
 import { logger } from '../../utils/logger.js';
+import { AssistantMessage } from '../../types/message.js';
 
 // 确保日志目录存在
 const LOG_DIR = path.join(process.cwd(), '.claude', 'logs');
@@ -125,7 +126,8 @@ export async function* callModel({ messages, systemPrompt, tools, signal, option
       tool_choice: 'auto'
     })
   };
-
+  console.log("ai====",JSON.stringify(requestBody,null,2));
+  // return
   try {
     // 发起流式请求
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -161,7 +163,7 @@ export async function* callModel({ messages, systemPrompt, tools, signal, option
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
+      
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop(); // 保留不完整的行
@@ -303,7 +305,7 @@ export async function* callModel({ messages, systemPrompt, tools, signal, option
     logger.info(`Log saved to: ${logFileName}, Usage: ${JSON.stringify(logData.response.usage)}`);
     
     // yield完整的助手消息（包含所有内容）
-    yield new (await import('../../types/message.js')).AssistantMessage({
+    yield new AssistantMessage({
       role: 'assistant',
       content: assistantMessage.content,
       stop_reason: assistantMessage.stop_reason || 'end_turn'

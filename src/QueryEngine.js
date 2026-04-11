@@ -143,7 +143,7 @@ export class QueryEngine {
     logger.info(`QueryEngine.submitMessage: toolUseContext.options.tools = ${toolsCount} tools: ${toolNames}`);
 
     // Prepare system prompt
-    let systemPrompt = customSystemPrompt || 'You are Claude, an AI assistant.';
+    let systemPrompt = customSystemPrompt || '';
     if (appendSystemPrompt) {
       systemPrompt += '\n' + appendSystemPrompt;
     }
