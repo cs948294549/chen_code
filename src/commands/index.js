@@ -1,15 +1,16 @@
 // 命令注册和管理
-import helpCommand from './commands/help/index.js';
-import exitCommand from './commands/exit/index.js';
-import clearCommand from './commands/clear/index.js';
-import historyCommand from './commands/history/index.js';
-import touchCommand from './commands/touch/index.js';
-import writeCommand from './commands/write/index.js';
-import cronCreateCommand from './commands/cron/create/index.js';
-import cronDeleteCommand from './commands/cron/delete/index.js';
-import cronListCommand from './commands/cron/list/index.js';
-import modelCommand from './commands/model/index.js';
-import resetCommand from './commands/reset/index.js';
+import helpCommand from './help/index.js';
+import exitCommand from './exit/index.js';
+import clearCommand from './clear/index.js';
+import historyCommand from './history/index.js';
+import touchCommand from './touch/index.js';
+import writeCommand from './write/index.js';
+import cronCreateCommand from './cron/create/index.js';
+import cronDeleteCommand from './cron/delete/index.js';
+import cronListCommand from './cron/list/index.js';
+import modelCommand from './model/index.js';
+import resetCommand from './reset/index.js';
+import aiCommand from './ai/index.js';
 
 const commands = {};
 const commandSources = {};
@@ -80,6 +81,7 @@ function initCommands() {
   registerCommand('cron:list', cronListCommand.handler, 'List all scheduled tasks', { source: 'builtin' });
   
   // AI 相关命令
+  registerCommand('ai', aiCommand.handler, 'Send a message to AI assistant', { source: 'builtin' });
   registerCommand('model', modelCommand.handler, 'Switch or view the current AI model', { source: 'builtin' });
   registerCommand('reset', resetCommand.handler, 'Clear the AI conversation history', { source: 'builtin' });
   
@@ -100,4 +102,3 @@ export {
   formatDescriptionWithSource,
   initCommands
 };
-

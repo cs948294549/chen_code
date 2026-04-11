@@ -1,4 +1,4 @@
-import { getCommands, formatDescriptionWithSource } from '../../commands.js';
+import { getCommands, formatDescriptionWithSource } from '../index.js';
 
 const helpCommand = {
   name: 'help',

@@ -1,6 +1,6 @@
 import { DEFAULT_CRON_JITTER_CONFIG, readCronTasks, removeCronTasks, markCronTasksFired, findMissedTasks, jitteredNextCronRunMs, oneShotJitteredNextCronRunMs, hasCronTasksSync, getCronFilePath } from './cronTasks.js';
 import { createLogger } from './logger.js';
-import { executeCommand } from '../commands.js';
+import { executeCommand } from '../commands/index.js';
 import { cronToHuman } from './cron.js';
 
 const CHECK_INTERVAL_MS = 1000;

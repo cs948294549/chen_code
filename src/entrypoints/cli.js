@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import readline from 'readline';
-import { executeCommand } from '../commands.js';
+import { executeCommand } from '../commands/index.js';
 import useTextInput from '../hooks/useTextInput.js';
 import serviceManager from '../services/index.js';
 

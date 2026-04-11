@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useInput } from 'ink';
 import Box from './Box.js';
 import Text from './Text.js';
-import { executeCommand } from '../../commands.js';
+import { executeCommand } from '../../commands/index.js';
 import { addToHistory, resetHistory } from '../../history.js';
 import serviceManager from '../../services/index.js';
 
